@@ -376,13 +376,14 @@ plot_dtu_table <- function(dturtle, columns = NULL, column_formatters = list(),
 }
 
 
-#' Visualize as barplot
+#' Visualize as barplot or boxplot
 #'
-#' Visualize genes and it's transcript proportions in a barplot.
+#' Visualize genes and it's transcript proportions in a barplot or boxplot.
 #'
-#' Shows the transcripts proportional change per analysis group, together with the mean fit value via a horizontal line. Significant transcript's names are marked in red.
+#' Shows the transcripts proportional change per analysis group, together with the mean fit value via a horizontal line (in barplot). Significant transcript's names are marked in red.
 #'
 #' @param dturtle `dturtle` result object of `posthoc_and_stager()`.
+#' @param plot_type Specify whether to generate a "barplot" or "boxplot".
 #' @param genes Character vector of genes to plot. If `NULL`, defaults to all found significant genes (`sig_genes`).
 #' @param meta_gene_id Optionally specify the column name in `meta_table_gene`, which contains real gene identifiers or gene names.
 #' @param group_colors Optionally specify the colours for the two sample groups in the plot. Must be a named vector, with the group names as names.
@@ -399,11 +400,12 @@ plot_dtu_table <- function(dturtle, columns = NULL, column_formatters = list(),
 #' @family DTUrtle visualization
 #' @export
 #' @seealso [run_drimseq()] and [posthoc_and_stager()] for DTU object creation. [create_dtu_table()] and [plot_dtu_table()] for table visualization.
-plot_proportion_barplot <- function(dturtle, genes = NULL, meta_gene_id = NULL,
+plot_proportion_plot <- function(dturtle, plot_type="barplot", genes = NULL, meta_gene_id = NULL,
                                     group_colors = NULL, fit_line_color = "red",
                                     text_size = 11, label_angle = c(25, 1, 1), savepath = NULL,
-                                    filename_ext = "_barplot.png", add_to_table = FALSE,
+                                    filename_ext = NULL, add_to_table = FALSE,
                                     BPPARAM = BiocParallel::SerialParam(), ...) {
+  assertthat::assert_that(plot_type %in% c("barplot","boxplot") || (methods::is(plot_type, "character") && length(plot_type) == 1), msg = "The plot_type must be a character vector with value 'barplot' or 'boxplot'")
   assertthat::assert_that(is.null(genes) || (methods::is(genes, "character") && length(genes) > 0), msg = "The genes object must be a non-empty character vector or NULL.")
   assertthat::assert_that(is.null(meta_gene_id) || (methods::is(meta_gene_id, "character") && meta_gene_id %in% colnames(dturtle$meta_table_gene)), msg = "The provided meta_gene_id column could not be found or is of wrong format.")
   assertthat::assert_that(is.null(group_colors) || (methods::is(group_colors, "list") && !is.null(names(group_colors))), msg = "The provided group colors must be a named list or NULL.")
@@ -420,6 +422,7 @@ plot_proportion_barplot <- function(dturtle, genes = NULL, meta_gene_id = NULL,
   assertthat::assert_that(!is.null(dturtle$drim), msg = "The provided dturtle object does not contain all the needed information. Have you run 'posthoc_and_stager()'?")
   assertthat::assert_that(!is.null(dturtle$sig_tx), msg = "The provided dturtle object does not contain all the needed information. Have you run 'posthoc_and_stager()'?")
   assertthat::assert_that(!is.null(dturtle$group), msg = "The provided dturtle object does not contain all the needed information. Have you run 'posthoc_and_stager()'?")
+  assertthat::assert_that(is.null(filename_ext) || is.character(filename_ext) && length(filename_ext)==1, msg = "The filename extension must be a character vector of length 1")
 
   if (is.null(genes)) {
     assertthat::assert_that(length(dturtle$sig_gene) > 0, msg = "The provided dturtle object does not contain any significant gene. Specify genes to plot or try to rerun the pipeline with more relaxed thresholds.")
@@ -448,6 +451,10 @@ plot_proportion_barplot <- function(dturtle, genes = NULL, meta_gene_id = NULL,
 
   if (length(valid_genes) > 10) {
     BiocParallel::bpprogressbar(BPPARAM) <- TRUE
+  }
+
+  if (is.null(filename_ext)) {
+    filename_ext <- paste0("_", plot_type, ".png")
   }
 
   message("Creating ", length(valid_genes), " plots:")
@@ -527,9 +534,17 @@ plot_proportion_barplot <- function(dturtle, genes = NULL, meta_gene_id = NULL,
     }
     text_colour <- ifelse(feature_levels %in% dturtle$sig_tx, "red", "dimgrey")
 
-    # barplot
-    ggp <- ggplot2::ggplot(data = prop_samp, mapping = ggplot2::aes_string(x = "feature_id", y = "proportion", group = "sample_id", fill = "group")) +
-      ggplot2::geom_bar(stat = "identity", position = ggplot2::position_dodge(width = 0.9)) +
+    # plot
+    if(plot_type=="barplot"){
+      # barplot
+      ggp <- ggplot2::ggplot(data = prop_samp, mapping = ggplot2::aes_string(x = "feature_id", y = "proportion", group = "sample_id", fill = "group")) +
+        ggplot2::geom_bar(stat = "identity", position = ggplot2::position_dodge(width = 0.9))
+    }else if(plot_type=="boxplot"){
+      # boxplot
+      ggp <- ggplot2::ggplot(data = prop_samp) + 
+        ggplot2::geom_boxplot(mapping = ggplot2::aes_string(x = "feature_id", y = "proportion",fill = "group"))
+      }
+    ggp <- ggp +
       ggplot2::theme_bw(base_size = text_size) +
       suppressWarnings(ggplot2::theme(
         axis.text.x = ggplot2::element_text(angle = label_angle[1], vjust = label_angle[2], hjust = label_angle[3], colour = text_colour),
@@ -537,7 +552,6 @@ plot_proportion_barplot <- function(dturtle, genes = NULL, meta_gene_id = NULL,
       )) +
       ggplot2::scale_fill_manual(name = "Group", values = group_colors, breaks = names(group_colors)) +
       ggplot2::labs(title = main, x = "Transcripts", y = "Proportions")
-
     if (!is.null(fit_line_color)) {
       ggp <- ggp + ggplot2::geom_errorbar(
         data = prop_fit, ggplot2::aes_string(x = "feature_id", ymin = "proportion", ymax = "proportion", group = "sample_id"),

@@ -224,10 +224,17 @@ dturtle <- create_dtu_table(dturtle = dturtle)
 setwd("my_results_folder")    
 
 #create plots, save them to disk and link them in the `dtu_table`.
-dturtle <- plot_proportion_barplot(dturtle = dturtle, 
-                                   savepath = "images", 
-                                   add_to_table = "barplot",
-                                   BPPARAM = biocpar)
+dturtle <- plot_proportion(dturtle = dturtle, 
+			   plot_type="barplot",
+                           savepath = "images", 
+                           add_to_table = "barplot",
+                           BPPARAM = biocpar)
+
+dturtle <- plot_proportion(dturtle = dturtle,
+			   plot_type="boxplot", 
+                           savepath = "images", 
+                           add_to_table = "boxplot",
+                           BPPARAM = biocpar)
 
 dturtle <- plot_proportion_pheatmap(dturtle = dturtle, 
                                     savepath = "images", 
