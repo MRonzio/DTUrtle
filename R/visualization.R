@@ -400,7 +400,7 @@ plot_dtu_table <- function(dturtle, columns = NULL, column_formatters = list(),
 #' @family DTUrtle visualization
 #' @export
 #' @seealso [run_drimseq()] and [posthoc_and_stager()] for DTU object creation. [create_dtu_table()] and [plot_dtu_table()] for table visualization.
-plot_proportion_plot <- function(dturtle, plot_type="barplot", genes = NULL, meta_gene_id = NULL,
+plot_proportion <- function(dturtle, plot_type="barplot", genes = NULL, meta_gene_id = NULL,
                                     group_colors = NULL, fit_line_color = "red",
                                     text_size = 11, label_angle = c(25, 1, 1), savepath = NULL,
                                     filename_ext = NULL, add_to_table = FALSE,
@@ -540,6 +540,7 @@ plot_proportion_plot <- function(dturtle, plot_type="barplot", genes = NULL, met
       ggp <- ggplot2::ggplot(data = prop_samp, mapping = ggplot2::aes_string(x = "feature_id", y = "proportion", group = "sample_id", fill = "group")) +
         ggplot2::geom_bar(stat = "identity", position = ggplot2::position_dodge(width = 0.9))
     }else if(plot_type=="boxplot"){
+      fit_line_color <- NULL
       # boxplot
       ggp <- ggplot2::ggplot(data = prop_samp) + 
         ggplot2::geom_boxplot(mapping = ggplot2::aes_string(x = "feature_id", y = "proportion",fill = "group"))
@@ -556,7 +557,7 @@ plot_proportion_plot <- function(dturtle, plot_type="barplot", genes = NULL, met
       ggp <- ggp + ggplot2::geom_errorbar(
         data = prop_fit, ggplot2::aes_string(x = "feature_id", ymin = "proportion", ymax = "proportion", group = "sample_id"),
         position = ggplot2::position_dodge(width = 0.9), size = 0.5, linetype = "solid", inherit.aes = FALSE, width = 1, colour = fit_line_color
-      )
+        )
     }
     if (!is.null(savepath)) {
       # default arguments for plot
